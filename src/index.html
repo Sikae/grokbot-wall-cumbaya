@@ -2,14 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Grok Bot · Check-in Wall</title>
+<title>Grok Bot · Cumbayá</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="data:,">
 <style>
-  :root { --accent:#4F9CF9; --fg:#ececf1; --dim:#8a8f9a; --line:#2a2d35; --bg:#06070a; --mono:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace; }
+  :root { --accent:#4F9CF9; --fg:#ececf1; --dim:#8a8f9a; --line:#2a2d35; --bg:#06070a; --mono:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace; --cream:#FAF7F0; }
   [hidden]{display:none!important}
   html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(--mono);color:var(--fg)}
   #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
+  /* Daylight theme */
+  .daylight #stage{background:var(--cream)}
+  .daylight html,.daylight body{background:var(--cream)}
+  /* Daylight overlay UI */
+  #daylight-ui{position:fixed;inset:0;pointer-events:none;z-index:5;display:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif}
+  .daylight #daylight-ui{display:block}
+  #daylight-title{position:absolute;top:28px;left:32px;font-size:clamp(14px,2vw,20px);font-weight:500;color:#888;letter-spacing:.02em}
+  #daylight-idle{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);font-size:clamp(16px,2.5vw,24px);color:#aaa;letter-spacing:.04em;text-align:center;transition:opacity .4s}
+  #daylight-welcome{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .5s;pointer-events:none}
+  #daylight-welcome.active{opacity:1}
+  #daylight-welcome-label{font-size:clamp(28px,5vw,60px);font-weight:700;letter-spacing:.08em;margin-bottom:8px}
+  #daylight-welcome-name{font-size:clamp(42px,8vw,120px);font-weight:800;letter-spacing:-.01em;text-align:center;padding:0 20px;line-height:1.1}
+  #daylight-welcome-credits{font-size:clamp(14px,2vw,22px);color:#888;margin-top:24px;letter-spacing:.02em}
   #gl{display:block}
   button{font:inherit;color:var(--fg);background:transparent;border:1px solid var(--line);padding:6px 12px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;font-size:12px}
   button:hover{border-color:var(--accent);color:#fff}
@@ -64,6 +77,17 @@
 <body>
 <div id="stage"><canvas id="gl"></canvas></div>
 
+<!-- Daylight theme overlay UI (projector view) -->
+<div id="daylight-ui">
+  <div id="daylight-title">Grok Bot · Cumbayá</div>
+  <div id="daylight-idle">Waiting for you</div>
+  <div id="daylight-welcome">
+    <div id="daylight-welcome-label">WELCOME</div>
+    <div id="daylight-welcome-name"></div>
+    <div id="daylight-welcome-credits">Your Cursor credits are on the way</div>
+  </div>
+</div>
+
 <div id="desk" hidden>
   <div class="dk-head">
     <span class="dk-title">▌ DESK CONSOLE</span><span class="dk-sub" id="dk-mode"></span>
@@ -95,8 +119,27 @@
 const CODES = /*@codes*/null; // {A:[{code,url}],B:[{code,url}],labels:{A,B}}
 const params = new URLSearchParams(location.search);
 const RAW = params.has('raw');
+const DAYLIGHT = !params.has('ascii') && !params.has('dark');
+const LANG = params.get('lang') || 'en';
 const WALL_KEY = params.get('key') || '';
 const api = (path, init = {}) => fetch(path, { ...init, headers: { ...(init.headers || {}), ...(WALL_KEY ? { 'x-wall-key': WALL_KEY } : {}) } });
+
+// i18n strings
+const I18N = {
+  en: {
+    title: 'Grok Bot · Cumbayá',
+    idle: 'Waiting for you',
+    welcome: 'WELCOME',
+    credits: 'Your Cursor credits are on the way',
+  },
+  es: {
+    title: 'Grok Bot · Cumbayá',
+    idle: 'Esperándote',
+    welcome: 'BIENVENIDO',
+    credits: 'Tus créditos de Cursor están en camino',
+  },
+};
+const t = key => (I18N[LANG] || I18N.en)[key] || I18N.en[key];
 const $ = s => document.querySelector(s);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -124,11 +167,27 @@ const BRAND = [
   { name: 'GREY',    hex: '#6E6E6E', ui: '#8A4CF0' },
 ].map(c => { const main = c.ui || c.hex; const rgb = hex2rgb(main); const lightRgb = mixRgb(rgb, [255, 255, 255], 0.45), deepRgb = mixRgb(rgb, [0, 0, 0], 0.5); return { ...c, main, rgb, lightRgb, deepRgb, light: rgb2hex(lightRgb), deep: rgb2hex(deepRgb) }; });
 const CHROMA = ['RED', 'ORANGE', 'AMBER', 'GREEN', 'TEAL', 'BLUE', 'PURPLE', 'MAGENTA'].map(n => BRAND.findIndex(c => c.name === n));
+// Daylight mode uses specific vivid colors that look good on cream (matching mockups)
+const DAYLIGHT_COLORS = [
+  { name: 'SKY',     hex: '#4AA8D8', main: '#4AA8D8' },  // Sky blue (idle)
+  { name: 'PINK',    hex: '#E85A9C', main: '#E85A9C' },  // Vibrant pink
+  { name: 'MINT',    hex: '#5DBAA3', main: '#5DBAA3' },  // Mint/teal
+  { name: 'CORAL',   hex: '#F07B6E', main: '#F07B6E' },  // Coral
+  { name: 'VIOLET',  hex: '#9B7ED9', main: '#9B7ED9' },  // Soft violet
+  { name: 'GOLD',    hex: '#E8B84A', main: '#E8B84A' },  // Warm gold
+  { name: 'LIME',    hex: '#8BC565', main: '#8BC565' },  // Fresh lime
+  { name: 'AZURE',   hex: '#5B9BD5', main: '#5B9BD5' },  // Azure blue
+].map(c => ({ ...c, rgb: hex2rgb(c.hex), lightRgb: mixRgb(hex2rgb(c.hex), [255,255,255], 0.3), deepRgb: mixRgb(hex2rgb(c.hex), [0,0,0], 0.3), light: rgb2hex(mixRgb(hex2rgb(c.hex), [255,255,255], 0.3)), deep: rgb2hex(mixRgb(hex2rgb(c.hex), [0,0,0], 0.3)) }));
+let daylightColorIdx = 0;
 const WHITE = [240, 240, 244], GREY = [128, 134, 148], DIM = [66, 70, 82], BLACK = [0, 0, 0];
 let colorIdx = 0, celebColor = 6;           // white body + blue UI to start; check-ins walk the colour wheel
-const accent = () => BRAND[colorIdx];
-const bodyHex = () => BRAND[colorIdx].hex;
+const accent = () => DAYLIGHT ? DAYLIGHT_COLORS[daylightColorIdx] : BRAND[colorIdx];
+const bodyHex = () => DAYLIGHT ? DAYLIGHT_COLORS[daylightColorIdx].hex : BRAND[colorIdx].hex;
 function bgTriple() {
+  if (DAYLIGHT) {
+    const c = accent();
+    return [new THREE.Color(c.main), new THREE.Color(c.light), new THREE.Color(c.deep)];
+  }
   const k = Math.max(0, CHROMA.indexOf(BRAND.findIndex(c => c.hex === accent().main)));
   return [BRAND[CHROMA[k]], BRAND[CHROMA[(k + 1) % 8]], BRAND[CHROMA[(k + 7) % 8]]].map(c => new THREE.Color(c.main));
 }
@@ -311,7 +370,11 @@ function demoCheckIn() {
 function scheduleDemo() {
   clearTimeout(demoTimer);
   if (params.has('noauto')) return;
-  demoTimer = setTimeout(() => { demoCheckIn(); scheduleDemo(); }, 7000 + Math.random() * 6000);
+  // In daylight mode, use longer intervals to avoid overlapping with 9-second welcomes
+  // Or disable auto-demo entirely unless explicitly requested with ?autoDemo
+  if (DAYLIGHT && !params.has('autoDemo')) return;
+  const interval = DAYLIGHT ? 15000 + Math.random() * 8000 : 7000 + Math.random() * 6000;
+  demoTimer = setTimeout(() => { demoCheckIn(); scheduleDemo(); }, interval);
 }
 
 // =====================================================================
@@ -537,6 +600,13 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x1a2030, 1.3));
 const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(-3, 4, 5); scene.add(key);
 const rim = new THREE.PointLight(0x4f9cf9, 40, 30, 2); rim.position.set(3.5, -1.5, 2.5); scene.add(rim);
 
+// Daylight mode lighting (softer, ambient-dominated for cream background)
+const daylightHemi = new THREE.HemisphereLight(0xffffff, 0xf5f0e6, 1.8);
+const daylightKey = new THREE.DirectionalLight(0xffffff, 1.2); daylightKey.position.set(-2, 5, 4);
+const daylightFill = new THREE.DirectionalLight(0xfff5e6, 0.6); daylightFill.position.set(3, 2, 3);
+daylightHemi.visible = false; daylightKey.visible = false; daylightFill.visible = false;
+scene.add(daylightHemi); scene.add(daylightKey); scene.add(daylightFill);
+
 const bot = new THREE.Group(); scene.add(bot);
 const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.0 });
 // Eyes are two tilted pills cut into the sphere surface (like the logo), done in the shader.
@@ -629,9 +699,12 @@ function setStyle(i, t, dur = 1.4) {
   rFrom.set(rCur); applyRamp(STYLES[i].ramp);
   celeb.flash = Math.max(celeb.flash, 0.3);
 }
-const skinColor = () => new THREE.Color(bodyHex());
+const skinColor = () => {
+  const hex = bodyHex();
+  return new THREE.Color(hex);
+};
 
-// soft brand-gradient backdrop
+// soft brand-gradient backdrop (for ASCII mode)
 const bgMat = new THREE.ShaderMaterial({
   uniforms: { uT: { value: 0 }, uC1: { value: new THREE.Color('#4F9CF9') }, uC2: { value: new THREE.Color('#E0309A') }, uC3: { value: new THREE.Color('#A98BFF') }, uBoost: { value: 1.0 } },
   vertexShader: `varying vec2 vUv; varying float vY; void main(){ vUv = uv; vY = position.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
@@ -652,6 +725,25 @@ const bgMat = new THREE.ShaderMaterial({
   blending: THREE.NoBlending,
 });
 const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(60, 36), bgMat); bgMesh.position.z = -10; bgScene.add(bgMesh);
+
+// Daylight mode: cream background with soft shadows
+const daylightBgMat = new THREE.ShaderMaterial({
+  uniforms: { uT: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    precision highp float; uniform float uT; varying vec2 vUv;
+    void main(){
+      vec3 cream = vec3(0.98, 0.969, 0.941);
+      float vignette = 1.0 - 0.15 * length(vUv - 0.5);
+      float grain = fract(sin(dot(vUv * 1000.0 + uT, vec2(12.9898, 78.233))) * 43758.5453) * 0.012;
+      gl_FragColor = vec4(cream * vignette + grain, 1.0);
+    }`,
+  blending: THREE.NoBlending,
+});
+const daylightBgMesh = new THREE.Mesh(new THREE.PlaneGeometry(60, 36), daylightBgMat);
+daylightBgMesh.position.z = -10;
+daylightBgMesh.visible = false;
+bgScene.add(daylightBgMesh);
 
 // ---- floating headline in the backdrop (event name as big glyph-textured letters drifting behind the bot) ----
 const HEAD_Z = -2.4;
@@ -764,12 +856,17 @@ function updateWorld(t, dt, L) {
   rim.color.copy(smoothCol.c1); rim.position.set(center.x + rad * 2.2, center.y - rad * 0.8, 2.5);
   bgMesh.position.set(center.x * 0.3, 0, -10);
   // headline drift: right → left across the upper third, behind the bot, wrapping around
-  setHeadline(params.get('headline') || app.headline || app.eventName || 'Grok Bot Meetup');
-  if (headMesh.visible) {
-    const k = (cam.position.z - HEAD_Z) / cam.position.z; const halfH = visH() / 2 * k, halfW = halfH * cam.aspect; const W = headMesh.userData.w;
-    const span = 2 * halfW + W; headMesh.position.x = halfW + W / 2 - ((t * 0.45) % span);
-    headMesh.position.y = halfH * 0.52 + Math.sin(t * 0.5) * 0.12; headMesh.rotation.z = Math.sin(t * 0.3) * 0.02;
-    headMat.color.set(accent().light);
+  // Hide headline in daylight mode (cleaner projector view)
+  if (!DAYLIGHT) {
+    setHeadline(params.get('headline') || app.headline || app.eventName || 'Grok Bot Meetup');
+    if (headMesh.visible) {
+      const k = (cam.position.z - HEAD_Z) / cam.position.z; const halfH = visH() / 2 * k, halfW = halfH * cam.aspect; const W = headMesh.userData.w;
+      const span = 2 * halfW + W; headMesh.position.x = halfW + W / 2 - ((t * 0.45) % span);
+      headMesh.position.y = halfH * 0.52 + Math.sin(t * 0.5) * 0.12; headMesh.rotation.z = Math.sin(t * 0.3) * 0.02;
+      headMat.color.set(accent().light);
+    }
+  } else {
+    headMesh.visible = false;
   }
   updateParticles(dt);
   celeb.flash = Math.max(0, celeb.flash - dt * 3.0);
@@ -797,10 +894,15 @@ const DESK = params.has('desk');
 let idleT0 = 0, idleI = 0;
 
 function drawUI(t, L) {
+  // Skip ASCII UI in daylight mode (use HTML overlay instead)
+  if (DAYLIGHT) return;
   colorBuf.fill(0);
   const { cols, rows } = G; const A = accent();
-  drawFeed(t, L);
-  drawBottom(t, L);
+  // Only show feed/bottom stats in desk mode (projector hides them)
+  if (DESK) {
+    drawFeed(t, L);
+    drawBottom(t, L);
+  }
   drawBanner(t, L);
 }
 
@@ -882,24 +984,90 @@ function drawBanner(t, L) {
 // =====================================================================
 //  CELEBRATION + LOOP
 // =====================================================================
+// Track used shapes/colors for Cumbayá mode (cycle without repeating)
+const usedShapes = new Set();
+const usedColors = new Set();
+
+function getNextUnusedShape() {
+  if (usedShapes.size >= STYLES.length) usedShapes.clear();
+  for (let i = 0; i < STYLES.length; i++) {
+    const idx = (morph.cur + 1 + i) % STYLES.length;
+    if (!usedShapes.has(idx)) { usedShapes.add(idx); return idx; }
+  }
+  return (morph.cur + 1) % STYLES.length;
+}
+
+function getNextUnusedColor() {
+  if (DAYLIGHT) {
+    if (usedColors.size >= DAYLIGHT_COLORS.length) usedColors.clear();
+    for (let i = 0; i < DAYLIGHT_COLORS.length; i++) {
+      const idx = (daylightColorIdx + 1 + i) % DAYLIGHT_COLORS.length;
+      if (!usedColors.has(idx)) { usedColors.add(idx); return idx; }
+    }
+    return (daylightColorIdx + 1) % DAYLIGHT_COLORS.length;
+  }
+  if (usedColors.size >= CHROMA.length) usedColors.clear();
+  for (let i = 0; i < CHROMA.length; i++) {
+    const idx = (celebColor + 1 + i) % CHROMA.length;
+    if (!usedColors.has(idx)) { usedColors.add(idx); return idx; }
+  }
+  return (celebColor + 1) % CHROMA.length;
+}
+
+function updateDaylightUI(t) {
+  const welcomeEl = $('#daylight-welcome');
+  const idleEl = $('#daylight-idle');
+  const nameEl = $('#daylight-welcome-name');
+  const labelEl = $('#daylight-welcome-label');
+  const creditsEl = $('#daylight-welcome-credits');
+  
+  if (celeb.active) {
+    const name = celeb.active.name || (celeb.active.email ? celeb.active.email.split('@')[0] : 'Guest');
+    const firstName = name.split(' ')[0];
+    nameEl.textContent = firstName;
+    labelEl.style.color = accent().main;
+    nameEl.style.color = '#222';
+    welcomeEl.classList.add('active');
+    idleEl.style.opacity = '0';
+  } else {
+    welcomeEl.classList.remove('active');
+    idleEl.style.opacity = '1';
+  }
+}
+
 function updateCelebration(t, L) {
   if (!celeb.active && celeb.queue.length) {
     celeb.active = celeb.queue.shift(); celeb.t0 = t;
-    celeb.dur = celeb.queue.length > 6 ? 2.2 : celeb.queue.length > 2 ? 3.2 : 5.4;
-    celebColor = (celebColor + 1) % CHROMA.length; colorIdx = CHROMA[celebColor]; celeb.flash = 0.9;
+    // Daylight mode: 8-10 seconds for welcome; ASCII mode: shorter based on queue
+    celeb.dur = DAYLIGHT ? (celeb.queue.length > 3 ? 6 : 9) : (celeb.queue.length > 6 ? 2.2 : celeb.queue.length > 2 ? 3.2 : 5.4);
+    // Use non-repeating cycle for colors and shapes
+    const nextColorIdx = getNextUnusedColor();
+    if (DAYLIGHT) {
+      daylightColorIdx = nextColorIdx;
+    } else {
+      celebColor = nextColorIdx;
+      colorIdx = CHROMA[celebColor];
+    }
+    celeb.flash = DAYLIGHT ? 0.3 : 0.9;
     anim.spinT0 = t; anim.kickT0 = t; anim.wowT0 = t;
-    setStyle(0, t, 0.55); morph.nextAt = t + celeb.dur + 6;
+    const nextShape = getNextUnusedShape();
+    setStyle(nextShape, t, 0.55); morph.nextAt = t + celeb.dur + 6;
     const rad = bot.scale.x || 1;
-    burst(220, bot.position, rad, accent());
-    setTimeout(() => burst(120, bot.position, rad, accent()), 320);
+    burst(DAYLIGHT ? 80 : 220, bot.position, rad, accent());
+    setTimeout(() => burst(DAYLIGHT ? 40 : 120, bot.position, rad, accent()), 320);
     document.documentElement.style.setProperty('--accent', accent().main);
     app.dirty = true;
   }
   if (celeb.active && t - celeb.t0 > celeb.dur) { celeb.active = null; app.dirty = true; }
-  if (!celeb.active && !morph.hold && t > morph.nextAt) {
-    setStyle(morph.cur + 1, t, 1.4); morph.nextAt = t + 12 + Math.random() * 5;
-    colorIdx = (colorIdx + 1) % BRAND.length; document.documentElement.style.setProperty('--accent', accent().main);
+  // In daylight mode, don't auto-morph in idle - keep the bot static until next check-in
+  // In ASCII mode, keep the original behavior of periodic morphing
+  if (!celeb.active && !morph.hold && t > morph.nextAt && !DAYLIGHT) {
+    const nextShape = getNextUnusedShape();
+    setStyle(nextShape, t, 1.4); morph.nextAt = t + 12 + Math.random() * 5;
+    colorIdx = (colorIdx + 1) % BRAND.length;
+    document.documentElement.style.setProperty('--accent', accent().main);
   }
+  if (DAYLIGHT) updateDaylightUI(t);
 }
 let last = nowS();
 function frame() {
@@ -908,10 +1076,23 @@ function frame() {
   const L = layout();
   updateCelebration(t, L);
   updateWorld(t, dt, L);
-  drawUI(t, L);
-  glyphTex.needsUpdate = true; colorTex.needsUpdate = true;
-  if (RAW) { renderer.setRenderTarget(null); renderer.render(bgScene, cam); renderer.autoClear = false; renderer.render(scene, cam); renderer.autoClear = true; }
-  else {
+  
+  if (DAYLIGHT) {
+    // Daylight mode: render solid bots directly without ASCII shader
+    daylightBgMat.uniforms.uT.value = t;
+    const cream = 0xFAF7F0;
+    renderer.setClearColor(cream, 1);
+    renderer.setRenderTarget(null);
+    renderer.render(bgScene, cam);
+    renderer.autoClear = false;
+    renderer.render(scene, cam);
+    renderer.autoClear = true;
+  } else if (RAW) {
+    renderer.setRenderTarget(null); renderer.render(bgScene, cam); renderer.autoClear = false; renderer.render(scene, cam); renderer.autoClear = true;
+  } else {
+    // ASCII mode: draw text UI
+    drawUI(t, L);
+    glyphTex.needsUpdate = true; colorTex.needsUpdate = true;
     renderer.setClearColor(0x000000, 1); renderer.setRenderTarget(rtFine); renderer.render(bgScene, cam);
     renderer.setClearColor(0x000000, 0); renderer.setRenderTarget(rt); renderer.render(scene, cam);
     renderer.setRenderTarget(null); renderer.render(compScene, compCam);
@@ -1092,6 +1273,31 @@ addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(l
 // =====================================================================
 async function boot() {
   layoutGrid();
+  
+  // Initialize daylight mode
+  if (DAYLIGHT) {
+    document.documentElement.classList.add('daylight');
+    bgMesh.visible = false;
+    daylightBgMesh.visible = true;
+    // Switch to daylight lighting
+    scene.children.filter(c => c.isLight).forEach(l => { if (!l.userData.daylight) l.visible = false; });
+    daylightHemi.visible = true; daylightHemi.userData.daylight = true;
+    daylightKey.visible = true; daylightKey.userData.daylight = true;
+    daylightFill.visible = true; daylightFill.userData.daylight = true;
+    // Reduce material roughness for cleaner look
+    bodyMat.roughness = 0.35;
+    bodyMat.metalness = 0.05;
+    // Set up daylight UI text
+    $('#daylight-title').textContent = t('title');
+    $('#daylight-idle').textContent = t('idle');
+    $('#daylight-welcome-label').textContent = t('welcome');
+    $('#daylight-welcome-credits').textContent = t('credits');
+    // Initialize with sky blue (index 0 in DAYLIGHT_COLORS)
+    daylightColorIdx = 0;
+    document.documentElement.style.setProperty('--accent', accent().main);
+    bodyMat.color.set(accent().hex);
+  }
+  
   frame();
   // served over http(s): keep retrying /health rather than falling back to demo on a network blip
   let h = null;

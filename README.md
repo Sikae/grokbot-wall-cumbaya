@@ -1,17 +1,53 @@
-# Grok Bot · Check-in Wall
+# Grok Bot · Cumbayá
 
-A single-file Three.js "terminal" for a Grok Bot meetup: guests check in on Luma, a
-full-screen ASCII Grok Bot greets each one by name on the venue screen, and every guest is
+A Three.js welcome wall for Grok Bot meetups. Guests check in on Luma, a full-screen
+animated Grok Bot greets each one by name on the venue projector, and every guest is
 emailed a Cursor referral code (credits) the moment they check in.
 
-Everything on screen is one WebGL character grid: a 3D Grok Bot rendered through an ASCII
-shader, morphing between the eight official Grok Bot silhouettes in the brand colours; a
-drifting headline and colour field on a finer grid behind it; a live check-in feed and a
-block-letter welcome as overlays. Click or tap the art for an ASCII shockwave.
+**Daylight mode** (default): solid-filled animated Grok Bot on a cream background, designed
+for morning events in bright rooms. The bot morphs through eight official silhouettes in
+vivid brand colours, welcoming each guest by name for 8–10 seconds.
 
-The server does the work: it polls Luma (and accepts its webhook), allocates one code per
-guest, and emails it via Resend. The wall page is a viewer. A hidden staff console handles
-lookups, resends, manual check-ins, and a CSV export.
+**ASCII mode** (`?ascii`): the original terminal aesthetic — a WebGL character grid with
+3D Grok Bots rendered through an ASCII shader, morphing silhouettes, drifting headline,
+live check-in feed, and block-letter welcome overlays. Click or tap for an ASCII shockwave.
+
+The server polls Luma (and accepts its webhook), allocates one code per guest, and emails
+it via Resend. The wall page is a viewer. A hidden staff console handles lookups, resends,
+manual check-ins, and a CSV export.
+
+---
+
+## Cumbayá Rehearsal Notes (Sat 3 Oct 2026)
+
+**Projector setup:**
+```sh
+npm start                      # serves http://localhost:8787
+# Open in browser: http://localhost:8787/?key=<your-token>
+# Press F for fullscreen
+```
+
+**Demo the welcome flow:** Press `Space` to fake a check-in. Each press shows a welcome
+animation with a new bot shape and colour.
+
+**Staff laptop (desk mode):** Open `http://localhost:8787/?key=<token>&desk` on a separate
+device. Press `D` to toggle the console — search guests, resend emails, manual check-ins.
+
+**Docker:**
+```sh
+docker compose up -d --build   # wall on 127.0.0.1:8787
+```
+
+**URL parameters:**
+| param | effect |
+|-------|--------|
+| `?key=<token>` | required when WALL_TOKEN is set |
+| `?desk` | enable staff console (press D) |
+| `?ascii` | use ASCII terminal mode instead of daylight |
+| `?lang=es` | Spanish text ("Esperándote", "BIENVENIDO") |
+| `?demo` | force demo mode with fake guests |
+
+---
 
 ## Quick start (local, demo mode)
 
@@ -80,9 +116,19 @@ exist for emergencies. Guests with no email or no code left are recorded as skip
 | `Space` | demo only: fake a check-in |
 | `D` / `M` / `Shift+E` | with `&desk`: console, manual check-in, export CSV |
 
-`?demo` fake guests · `?desk` staff console · `?cell=22` bigger text · `?fine=2` chunkier
-backdrop glyphs · `?headline=…` override the headline · `?style=3&color=2&hold` freeze a
-bot form and colour · `?raw` 3D scene without the ASCII pass.
+| param | effect |
+| --- | --- |
+| `?key=<token>` | required when WALL_TOKEN is set |
+| `?desk` | enable staff console (press D to open) |
+| `?ascii` | ASCII terminal mode (dark theme) |
+| `?dark` | alias for `?ascii` |
+| `?lang=es` | Spanish UI text |
+| `?demo` | force demo mode with fake guests |
+| `?cell=22` | bigger text (ASCII mode) |
+| `?fine=2` | chunkier backdrop glyphs (ASCII mode) |
+| `?headline=…` | override the drifting headline |
+| `?style=3&color=2&hold` | freeze bot form and colour |
+| `?raw` | 3D scene without ASCII pass |
 
 ## Layout of the repo
 
