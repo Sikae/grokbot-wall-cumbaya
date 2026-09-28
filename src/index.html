@@ -370,7 +370,11 @@ function demoCheckIn() {
 function scheduleDemo() {
   clearTimeout(demoTimer);
   if (params.has('noauto')) return;
-  demoTimer = setTimeout(() => { demoCheckIn(); scheduleDemo(); }, 7000 + Math.random() * 6000);
+  // In daylight mode, use longer intervals to avoid overlapping with 9-second welcomes
+  // Or disable auto-demo entirely unless explicitly requested with ?autoDemo
+  if (DAYLIGHT && !params.has('autoDemo')) return;
+  const interval = DAYLIGHT ? 15000 + Math.random() * 8000 : 7000 + Math.random() * 6000;
+  demoTimer = setTimeout(() => { demoCheckIn(); scheduleDemo(); }, interval);
 }
 
 // =====================================================================
@@ -1055,14 +1059,12 @@ function updateCelebration(t, L) {
     app.dirty = true;
   }
   if (celeb.active && t - celeb.t0 > celeb.dur) { celeb.active = null; app.dirty = true; }
-  if (!celeb.active && !morph.hold && t > morph.nextAt) {
+  // In daylight mode, don't auto-morph in idle - keep the bot static until next check-in
+  // In ASCII mode, keep the original behavior of periodic morphing
+  if (!celeb.active && !morph.hold && t > morph.nextAt && !DAYLIGHT) {
     const nextShape = getNextUnusedShape();
     setStyle(nextShape, t, 1.4); morph.nextAt = t + 12 + Math.random() * 5;
-    if (DAYLIGHT) {
-      daylightColorIdx = (daylightColorIdx + 1) % DAYLIGHT_COLORS.length;
-    } else {
-      colorIdx = (colorIdx + 1) % BRAND.length;
-    }
+    colorIdx = (colorIdx + 1) % BRAND.length;
     document.documentElement.style.setProperty('--accent', accent().main);
   }
   if (DAYLIGHT) updateDaylightUI(t);
