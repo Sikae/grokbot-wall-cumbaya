@@ -18,7 +18,7 @@
   .daylight #daylight-ui{display:block}
   #daylight-title{position:absolute;top:28px;left:32px;font-size:clamp(14px,2vw,20px);font-weight:500;color:#888;letter-spacing:.02em}
   #daylight-idle{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);font-size:clamp(16px,2.5vw,24px);color:#aaa;letter-spacing:.04em;text-align:center;transition:opacity .4s}
-  #daylight-welcome{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .5s;pointer-events:none}
+  #daylight-welcome{position:fixed;left:0;right:0;top:54%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;opacity:0;transition:opacity .5s;pointer-events:none}
   #daylight-welcome.active{opacity:1}
   #daylight-welcome-label{font-size:clamp(28px,5vw,60px);font-weight:700;letter-spacing:.08em;margin-bottom:8px}
   #daylight-welcome-name{font-size:clamp(42px,8vw,120px);font-weight:800;letter-spacing:-.01em;text-align:center;padding:0 20px;line-height:1.1}
@@ -167,18 +167,35 @@ const BRAND = [
   { name: 'GREY',    hex: '#6E6E6E', ui: '#8A4CF0' },
 ].map(c => { const main = c.ui || c.hex; const rgb = hex2rgb(main); const lightRgb = mixRgb(rgb, [255, 255, 255], 0.45), deepRgb = mixRgb(rgb, [0, 0, 0], 0.5); return { ...c, main, rgb, lightRgb, deepRgb, light: rgb2hex(lightRgb), deep: rgb2hex(deepRgb) }; });
 const CHROMA = ['RED', 'ORANGE', 'AMBER', 'GREEN', 'TEAL', 'BLUE', 'PURPLE', 'MAGENTA'].map(n => BRAND.findIndex(c => c.name === n));
-// Daylight mode uses specific vivid colors that look good on cream (matching mockups)
+// Production body colors from the Grok Bot brand sheet. Black is eyes only.
 const DAYLIGHT_COLORS = [
-  { name: 'SKY',     hex: '#4AA8D8', main: '#4AA8D8' },  // Sky blue (idle)
-  { name: 'PINK',    hex: '#E85A9C', main: '#E85A9C' },  // Vibrant pink
-  { name: 'MINT',    hex: '#5DBAA3', main: '#5DBAA3' },  // Mint/teal
-  { name: 'CORAL',   hex: '#F07B6E', main: '#F07B6E' },  // Coral
-  { name: 'VIOLET',  hex: '#9B7ED9', main: '#9B7ED9' },  // Soft violet
-  { name: 'GOLD',    hex: '#E8B84A', main: '#E8B84A' },  // Warm gold
-  { name: 'LIME',    hex: '#8BC565', main: '#8BC565' },  // Fresh lime
-  { name: 'AZURE',   hex: '#5B9BD5', main: '#5B9BD5' },  // Azure blue
-].map(c => ({ ...c, rgb: hex2rgb(c.hex), lightRgb: mixRgb(hex2rgb(c.hex), [255,255,255], 0.3), deepRgb: mixRgb(hex2rgb(c.hex), [0,0,0], 0.3), light: rgb2hex(mixRgb(hex2rgb(c.hex), [255,255,255], 0.3)), deep: rgb2hex(mixRgb(hex2rgb(c.hex), [0,0,0], 0.3)) }));
-let daylightColorIdx = 0;
+  { name: 'BROWN',   hex: '#97683D' },
+  { name: 'RED',     hex: '#FF263C' },
+  { name: 'ORANGE',  hex: '#FF6700' },
+  { name: 'YELLOW',  hex: '#FF9800' },
+  { name: 'GREEN',   hex: '#00C972' },
+  { name: 'CYAN',    hex: '#00BCA6' },
+  { name: 'BLUE',    hex: '#1084FE' },
+  { name: 'VIOLET',  hex: '#9159FE' },
+  { name: 'MAGENTA', hex: '#FF309B' },
+  { name: 'GRAY',    hex: '#777777' },
+].map(c => ({ ...c, main: c.hex, rgb: hex2rgb(c.hex), lightRgb: mixRgb(hex2rgb(c.hex), [255,255,255], 0.3), deepRgb: mixRgb(hex2rgb(c.hex), [0,0,0], 0.3), light: rgb2hex(mixRgb(hex2rgb(c.hex), [255,255,255], 0.3)), deep: rgb2hex(mixRgb(hex2rgb(c.hex), [0,0,0], 0.3)) }));
+let daylightColorIdx = 6; // idle starts on production blue
+// Official night-of silhouettes (morph_preferred). Radii are polar samples, y-up, max radius 1.
+// Sticker outlines: blob, squircle, wedge, hex, cloud, teardrop, capsule. pebble/bean/egg are soft brand forms.
+// Flower, clover, and sharp triangle are not in this set.
+const DAY_SHAPES = [
+  { name: 'blob', eyes: [[0.065,0.127,-0.053,0.368,0.171],[0.624,0.312,0.456,0.597,0.143]], r: [0.999,0.999,0.999,0.999,0.999,0.999,1,1,1,0.999,0.999,0.999,0.999,0.999,0.999,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0.999,1,1,1,1,1,1,0.999,0.999,0.999,0.999,0.999,0.999,1,1,1,1,1,1,1,1,1] },
+  { name: 'pebble', eyes: [[-0.2,-0.15,-0.2,0.19,0.1],[0.2,-0.15,0.2,0.19,0.1]], r: [0.953,0.945,0.937,0.928,0.919,0.91,0.902,0.894,0.886,0.879,0.873,0.867,0.863,0.858,0.854,0.85,0.847,0.844,0.841,0.837,0.834,0.831,0.828,0.824,0.821,0.819,0.816,0.814,0.813,0.813,0.813,0.815,0.818,0.823,0.829,0.837,0.846,0.857,0.869,0.883,0.897,0.912,0.927,0.942,0.956,0.969,0.98,0.989,0.995,0.999,1,0.998,0.993,0.985,0.974,0.961,0.946,0.929,0.912,0.894,0.875,0.857,0.84,0.824,0.809,0.796,0.785,0.776,0.77,0.766,0.764,0.764,0.768,0.773,0.78,0.79,0.801,0.813,0.827,0.841,0.856,0.872,0.887,0.901,0.915,0.928,0.939,0.949,0.957,0.964,0.968,0.97,0.97,0.968,0.964,0.959] },
+  { name: 'bean', eyes: [[-0.22,-0.13,-0.22,0.17,0.095],[0.22,-0.13,0.22,0.17,0.095]], r: [1,0.995,0.984,0.97,0.952,0.931,0.909,0.885,0.862,0.839,0.816,0.795,0.775,0.757,0.741,0.726,0.713,0.701,0.691,0.683,0.677,0.672,0.669,0.667,0.667,0.669,0.672,0.677,0.683,0.691,0.701,0.713,0.726,0.741,0.757,0.775,0.795,0.816,0.839,0.862,0.885,0.909,0.931,0.952,0.97,0.984,0.995,1,1,0.994,0.983,0.966,0.945,0.92,0.891,0.858,0.821,0.78,0.735,0.687,0.636,0.584,0.534,0.489,0.45,0.421,0.403,0.397,0.403,0.42,0.445,0.475,0.509,0.542,0.575,0.605,0.632,0.656,0.678,0.698,0.716,0.735,0.754,0.774,0.794,0.816,0.838,0.862,0.885,0.909,0.931,0.952,0.97,0.984,0.995,1] },
+  { name: 'egg', eyes: [[-0.16,-0.03,-0.16,0.27,0.09],[0.16,-0.03,0.16,0.27,0.09]], r: [0.745,0.756,0.768,0.782,0.796,0.811,0.827,0.843,0.859,0.875,0.89,0.905,0.92,0.933,0.945,0.957,0.966,0.975,0.982,0.988,0.993,0.997,0.999,1,1,0.999,0.997,0.993,0.988,0.982,0.975,0.966,0.957,0.945,0.933,0.92,0.905,0.89,0.875,0.859,0.843,0.827,0.811,0.796,0.782,0.768,0.756,0.745,0.735,0.727,0.721,0.716,0.713,0.712,0.713,0.716,0.721,0.728,0.739,0.751,0.766,0.784,0.805,0.828,0.853,0.879,0.906,0.932,0.956,0.977,0.991,0.999,0.999,0.991,0.977,0.956,0.932,0.906,0.879,0.853,0.828,0.805,0.784,0.766,0.751,0.739,0.728,0.721,0.716,0.713,0.712,0.713,0.716,0.721,0.727,0.735] },
+  { name: 'squircle', eyes: [[0.317,-0.273,0.276,0.013,0.138],[-0.112,-0.201,-0.152,0.085,0.138]], r: [0.883,0.886,0.891,0.898,0.906,0.914,0.922,0.928,0.932,0.935,0.934,0.931,0.926,0.918,0.91,0.9,0.891,0.882,0.874,0.869,0.865,0.865,0.867,0.874,0.884,0.897,0.912,0.929,0.947,0.964,0.979,0.991,0.997,1,0.995,0.99,0.987,0.986,0.98,0.969,0.957,0.943,0.929,0.915,0.902,0.892,0.885,0.882,0.882,0.885,0.891,0.898,0.905,0.914,0.921,0.928,0.932,0.934,0.934,0.931,0.926,0.918,0.91,0.901,0.891,0.882,0.875,0.869,0.865,0.865,0.868,0.874,0.884,0.897,0.912,0.929,0.947,0.964,0.979,0.991,0.997,1,0.996,0.99,0.987,0.986,0.98,0.969,0.957,0.943,0.928,0.914,0.902,0.892,0.885,0.882] },
+  { name: 'wedge', eyes: [[0.011,-0.364,-0.038,-0.13,0.09],[0.345,-0.337,0.309,-0.096,0.087]], r: [0.731,0.767,0.807,0.848,0.889,0.926,0.957,0.98,0.994,1,0.997,0.988,0.976,0.961,0.944,0.929,0.914,0.9,0.888,0.878,0.87,0.864,0.86,0.859,0.859,0.862,0.866,0.873,0.882,0.892,0.905,0.919,0.935,0.951,0.966,0.981,0.992,0.999,0.998,0.99,0.973,0.947,0.912,0.874,0.832,0.791,0.753,0.719,0.691,0.668,0.649,0.634,0.621,0.612,0.606,0.603,0.602,0.603,0.608,0.615,0.625,0.637,0.654,0.674,0.699,0.726,0.755,0.784,0.812,0.835,0.851,0.858,0.856,0.846,0.827,0.802,0.774,0.745,0.716,0.689,0.666,0.647,0.632,0.62,0.612,0.606,0.602,0.602,0.604,0.608,0.615,0.625,0.639,0.655,0.676,0.701] },
+  { name: 'hex', eyes: [[0.57,-0.206,0.644,-0.113,0.087],[0.218,-0.409,0.291,-0.317,0.087]], r: [0.904,0.908,0.917,0.93,0.947,0.969,0.99,1,0.997,0.983,0.96,0.94,0.925,0.913,0.906,0.903,0.904,0.909,0.917,0.93,0.947,0.969,0.99,0.999,0.997,0.984,0.96,0.94,0.924,0.913,0.906,0.903,0.904,0.908,0.917,0.93,0.947,0.969,0.99,0.999,0.997,0.983,0.96,0.94,0.924,0.913,0.906,0.903,0.904,0.908,0.917,0.93,0.947,0.969,0.99,0.999,0.997,0.983,0.96,0.94,0.925,0.913,0.906,0.903,0.904,0.909,0.917,0.93,0.947,0.969,0.99,0.999,0.997,0.984,0.96,0.94,0.924,0.913,0.906,0.903,0.904,0.908,0.917,0.93,0.947,0.969,0.99,0.999,0.997,0.983,0.96,0.94,0.924,0.913,0.906,0.903] },
+  { name: 'cloud', eyes: [[0.086,-0.299,0.089,-0.026,0.12],[-0.291,-0.302,-0.283,-0.002,0.106]], r: [0.949,0.967,0.981,0.991,0.998,1,0.998,0.992,0.982,0.968,0.95,0.929,0.904,0.876,0.843,0.807,0.768,0.762,0.771,0.779,0.785,0.791,0.794,0.796,0.797,0.795,0.793,0.788,0.783,0.776,0.768,0.76,0.803,0.84,0.874,0.903,0.93,0.951,0.969,0.983,0.992,0.998,0.998,0.995,0.988,0.977,0.961,0.941,0.918,0.889,0.857,0.823,0.826,0.837,0.846,0.852,0.855,0.856,0.854,0.849,0.842,0.833,0.821,0.807,0.791,0.772,0.752,0.729,0.712,0.73,0.748,0.765,0.781,0.795,0.808,0.819,0.829,0.837,0.843,0.846,0.849,0.849,0.849,0.845,0.841,0.834,0.826,0.815,0.803,0.789,0.776,0.805,0.841,0.873,0.902,0.927] },
+  { name: 'teardrop', eyes: [[-0.368,-0.195,-0.367,-0.182,0.232],[0.082,-0.164,0.082,-0.164,0.134]], r: [0.804,0.816,0.828,0.841,0.853,0.865,0.877,0.889,0.9,0.911,0.922,0.933,0.942,0.952,0.96,0.968,0.975,0.981,0.987,0.991,0.995,0.998,0.999,1,1,0.999,0.996,0.993,0.99,0.985,0.979,0.973,0.965,0.957,0.948,0.939,0.928,0.918,0.907,0.896,0.884,0.872,0.86,0.848,0.836,0.824,0.812,0.8,0.788,0.776,0.764,0.753,0.743,0.732,0.722,0.713,0.706,0.703,0.702,0.704,0.709,0.718,0.73,0.745,0.765,0.789,0.818,0.853,0.896,0.944,0.982,0.999,0.995,0.97,0.927,0.879,0.839,0.807,0.779,0.757,0.739,0.725,0.714,0.707,0.703,0.702,0.704,0.709,0.716,0.726,0.736,0.747,0.757,0.768,0.78,0.792] },
+  { name: 'capsule', eyes: [[0.002,-0.277,0.136,-0.073,0.096],[-0.375,-0.235,-0.521,-0.015,0.105]], r: [0.996,0.991,0.984,0.976,0.965,0.954,0.94,0.925,0.908,0.891,0.872,0.853,0.832,0.811,0.79,0.768,0.746,0.728,0.714,0.704,0.696,0.692,0.691,0.693,0.697,0.705,0.716,0.731,0.75,0.771,0.793,0.815,0.835,0.855,0.875,0.893,0.91,0.926,0.941,0.955,0.967,0.977,0.985,0.991,0.996,0.999,1,0.999,0.996,0.991,0.984,0.976,0.965,0.953,0.94,0.925,0.908,0.891,0.872,0.853,0.832,0.811,0.79,0.768,0.747,0.728,0.714,0.704,0.696,0.692,0.691,0.693,0.697,0.705,0.716,0.731,0.75,0.771,0.793,0.815,0.835,0.856,0.875,0.893,0.911,0.926,0.941,0.954,0.966,0.976,0.984,0.991,0.996,0.998,0.999,0.999] }
+];
 const WHITE = [240, 240, 244], GREY = [128, 134, 148], DIM = [66, 70, 82], BLACK = [0, 0, 0];
 let colorIdx = 0, celebColor = 6;           // white body + blue UI to start; check-ins walk the colour wheel
 const accent = () => DAYLIGHT ? DAYLIGHT_COLORS[daylightColorIdx] : BRAND[colorIdx];
@@ -600,15 +617,12 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x1a2030, 1.3));
 const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(-3, 4, 5); scene.add(key);
 const rim = new THREE.PointLight(0x4f9cf9, 40, 30, 2); rim.position.set(3.5, -1.5, 2.5); scene.add(rim);
 
-// Daylight mode lighting (softer, ambient-dominated for cream background)
-const daylightHemi = new THREE.HemisphereLight(0xffffff, 0xf5f0e6, 1.8);
-const daylightKey = new THREE.DirectionalLight(0xffffff, 1.2); daylightKey.position.set(-2, 5, 4);
-const daylightFill = new THREE.DirectionalLight(0xfff5e6, 0.6); daylightFill.position.set(3, 2, 3);
-daylightHemi.visible = false; daylightKey.visible = false; daylightFill.visible = false;
-scene.add(daylightHemi); scene.add(daylightKey); scene.add(daylightFill);
-
-const bot = new THREE.Group(); scene.add(bot);
+// botRig is the scene transform. In daylight it stays unrotated so a world-Z squash
+// flattens the mesh into a silhouette after the inner group turns the face to the camera.
+const botRig = new THREE.Group(); scene.add(botRig);
+const bot = new THREE.Group(); botRig.add(bot);
 const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.0 });
+const flatMat = new THREE.MeshBasicMaterial({ color: 0x4aa8d8 });
 // Eyes are two tilted pills cut into the sphere surface (like the logo), done in the shader.
 const EYES = [ { cx: 0.09, cy: 0.34, half: 0.13, r: 0.135 }, { cx: 0.47, cy: 0.55, half: 0.09, r: 0.10 } ];
 const EYE_TILT = -0.62; // radians from vertical; negative = leaning like a backslash
@@ -623,12 +637,45 @@ function setEyes(open = 1, wow = 1) {
   });
 }
 setEyes();
-bodyMat.onBeforeCompile = sh => {
-  Object.assign(sh.uniforms, eyeU);
-  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aDir; varying vec3 vLocal;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocal = aDir;');
+function attachEyes(mat) {
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, eyeU);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aDir; varying vec3 vLocal;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocal = aDir;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vLocal; uniform vec3 uE1a, uE1b, uE2a, uE2b, uEyeCol; uniform float uR1, uR2;\nfloat segd(vec3 p, vec3 a, vec3 b){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }')
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n{ float m = max(1.0 - smoothstep(uR1 * 0.8, uR1, segd(vLocal, uE1a, uE1b)), 1.0 - smoothstep(uR2 * 0.8, uR2, segd(vLocal, uE2a, uE2b))); gl_FragColor.rgb = mix(gl_FragColor.rgb, uEyeCol, m); }');
+  };
+}
+attachEyes(bodyMat);
+// Flat capsule eyes. Endpoints are in silhouette space and follow the active brand shape.
+const flatEyes = {
+  uOpen: { value: 1 },
+  uE1: { value: new THREE.Vector4() },
+  uE2: { value: new THREE.Vector4() },
+  uER: { value: new THREE.Vector2(0.1, 0.1) },
+};
+flatMat.onBeforeCompile = sh => {
+  Object.assign(sh.uniforms, flatEyes);
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>\nvarying vec2 vFlat;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFlat = position.xy;');
   sh.fragmentShader = sh.fragmentShader
-    .replace('#include <common>', '#include <common>\nvarying vec3 vLocal; uniform vec3 uE1a, uE1b, uE2a, uE2b, uEyeCol; uniform float uR1, uR2;\nfloat segd(vec3 p, vec3 a, vec3 b){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }')
-    .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n{ float m = max(1.0 - smoothstep(uR1 * 0.8, uR1, segd(vLocal, uE1a, uE1b)), 1.0 - smoothstep(uR2 * 0.8, uR2, segd(vLocal, uE2a, uE2b))); gl_FragColor.rgb = mix(gl_FragColor.rgb, uEyeCol, m); }');
+    .replace('#include <common>', `#include <common>
+uniform float uOpen;
+uniform vec4 uE1, uE2;
+uniform vec2 uER;
+varying vec2 vFlat;
+float capEye(vec2 p, vec4 e, float rad){
+  float k = max(uOpen, 0.28);
+  vec2 mid = (e.xy + e.zw) * 0.5;
+  vec2 a = mix(mid, e.xy, k), b = mix(mid, e.zw, k);
+  vec2 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-5), 0.0, 1.0);
+  return length(pa - ba * h) - rad * k;
+}`)
+    .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+{ float m = max(1.0 - smoothstep(0.0, 0.02, capEye(vFlat, uE1, uER.x)), 1.0 - smoothstep(0.0, 0.02, capEye(vFlat, uE2, uER.y)));
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), clamp(m, 0.0, 1.0)); }`);
 };
 // ---- morphing body: every form is a radial function R(dir) of the unit sphere, so the eyes stay on its face ----
 const bodyGeo = new THREE.SphereGeometry(1, 64, 48);
@@ -636,7 +683,12 @@ const dirs = Float32Array.from(bodyGeo.attributes.position.array);
 bodyGeo.setAttribute('aDir', new THREE.BufferAttribute(dirs, 3));
 const NV = dirs.length / 3;
 const rFrom = new Float32Array(NV).fill(1), rCur = new Float32Array(NV).fill(1);
-bot.add(new THREE.Mesh(bodyGeo, bodyMat));
+const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+bot.add(bodyMesh);
+// Soft floor ellipse for the daylight mock. Unlit, so it reads as a 2D drop shadow.
+const shadowMat = new THREE.MeshBasicMaterial({ color: 0xc2b6a4, transparent: true, opacity: 0.28, depthWrite: false });
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 48), shadowMat);
+shadow.visible = false; shadow.position.z = -0.8; scene.add(shadow);
 
 // 2D silhouettes from the brand guidelines (implicit functions: <0 inside). Only the zero set matters.
 const sdRoundedBox = (x, y, bx, by, r) => { const qx = Math.abs(x) - bx + r, qy = Math.abs(y) - by + r; return Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r; };
@@ -680,23 +732,56 @@ const STYLES = [
   { name: 'drop',     sd: 'drop',     d: 0.8,  eye: 1.2, motion: 'drip',   ramp: 'classic', line: 'grok bot is melting a little' },
 ];
 const formCache = new Map();
+function shapeN() { return DAYLIGHT ? DAY_SHAPES.length : STYLES.length; }
+function polarSample(samples, ang) {
+  const n = samples.length;
+  let u = (ang + Math.PI) / (2 * Math.PI) * n - 0.5;
+  u = ((u % n) + n) % n;
+  const i0 = Math.floor(u), i1 = (i0 + 1) % n, f = u - i0;
+  return samples[i0] * (1 - f) + samples[i1] * f;
+}
 function formRadii(i) {
-  if (formCache.has(i)) return formCache.get(i);
-  const f = STYLES[i], sdf = SD[f.sd], arr = new Float32Array(NV);
-  for (let v = 0; v < NV; v++) {
-    const x = dirs[v * 3], y = dirs[v * 3 + 1], z = dirs[v * 3 + 2]; const sxy = Math.hypot(x, y);
-    const fr = sxy > 1e-4 ? polarRadius(sdf, x / sxy, y / sxy) : 1;
-    arr[v] = 1 / Math.sqrt((sxy / fr) ** 2 + (z / f.d) ** 2);
+  const key = (DAYLIGHT ? 'd' : 'a') + i;
+  if (formCache.has(key)) return formCache.get(key);
+  const arr = new Float32Array(NV);
+  if (DAYLIGHT) {
+    const samples = DAY_SHAPES[i].r;
+    for (let v = 0; v < NV; v++) {
+      const x = dirs[v * 3], y = dirs[v * 3 + 1], z = dirs[v * 3 + 2]; const sxy = Math.hypot(x, y);
+      const fr = sxy > 1e-4 ? polarSample(samples, Math.atan2(y, x)) : 1;
+      arr[v] = 1 / Math.sqrt((sxy / Math.max(fr, 0.05)) ** 2 + (z / 0.35) ** 2);
+    }
+  } else {
+    const f = STYLES[i], sdf = SD[f.sd];
+    for (let v = 0; v < NV; v++) {
+      const x = dirs[v * 3], y = dirs[v * 3 + 1], z = dirs[v * 3 + 2]; const sxy = Math.hypot(x, y);
+      const fr = sxy > 1e-4 ? polarRadius(sdf, x / sxy, y / sxy) : 1;
+      arr[v] = 1 / Math.sqrt((sxy / fr) ** 2 + (z / f.d) ** 2);
+    }
   }
-  formCache.set(i, arr); return arr;
+  formCache.set(key, arr); return arr;
+}
+function applyDayEyes(k) {
+  const a = DAY_SHAPES[morph.prev] || DAY_SHAPES[0];
+  const b = DAY_SHAPES[morph.cur] || DAY_SHAPES[0];
+  const mix = (i) => {
+    const A = a.eyes[i], B = b.eyes[i];
+    return A.map((v, j) => v + (B[j] - v) * k);
+  };
+  const L = mix(0), R = mix(1);
+  flatEyes.uE1.value.set(L[0], L[1], L[2], L[3]);
+  flatEyes.uE2.value.set(R[0], R[1], R[2], R[3]);
+  flatEyes.uER.value.set(L[4], R[4]);
 }
 const morph = { cur: 0, prev: 0, t0: -10, dur: 1.2, nextAt: 13, settled: -1 };
 const easeOutBack = k => 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
 function setStyle(i, t, dur = 1.4) {
-  i = ((i % STYLES.length) + STYLES.length) % STYLES.length;
+  const n = shapeN();
+  i = ((i % n) + n) % n;
   if (i === morph.cur) return;
   morph.prev = morph.cur; morph.cur = i; morph.t0 = t; morph.dur = dur; morph.settled = -1;
-  rFrom.set(rCur); applyRamp(STYLES[i].ramp);
+  rFrom.set(rCur);
+  if (!DAYLIGHT) applyRamp(STYLES[i].ramp);
   celeb.flash = Math.max(celeb.flash, 0.3);
 }
 const skinColor = () => {
@@ -819,7 +904,7 @@ function updateWorld(t, dt, L) {
   const center = cellToWorld(L.botCx, L.botCy);
   const rad = pxToWorld(L.botRadPx);
   // shape morph
-  const st = STYLES[morph.cur], pv = STYLES[morph.prev];
+  const st = STYLES[morph.cur] || STYLES[0], pv = STYLES[morph.prev] || STYLES[0];
   const mk = clamp((t - morph.t0) / morph.dur, 0, 1), me = easeOutBack(mk);
   if (morph.settled !== morph.cur) {
     const rt = formRadii(morph.cur), pos = bodyGeo.attributes.position.array;
@@ -832,22 +917,44 @@ function updateWorld(t, dt, L) {
   }
   const m = blendMotion(motionAt(pv.motion, t), motionAt(st.motion, t), mk);
   const eyeK = lerp(pv.eye, st.eye, mk);
-  bodyMat.color.lerp(skinColor(), Math.min(1, dt * 2));
-  const bc = bodyMat.color; compMat.uniforms.uBodyPeak.value = Math.pow(Math.min(1, Math.max(bc.r, bc.g, bc.b, 0.02) * 1.3), 0.4545);
-  // celebration kick / spin / look-around
-  const kick = clamp((t - anim.kickT0) / 0.55, 0, 1), k = Math.sin(kick * Math.PI);
-  const jt = t - anim.joltT0, jl = jt < 0.6 ? Math.sin(jt / 0.6 * Math.PI) * 0.1 : 0;
-  bot.position.set(center.x + (m.px + anim.jolt.x * jl) * rad, center.y + (m.py + k * 0.18 + anim.jolt.y * jl) * rad, m.pz * rad);
-  bot.scale.set(rad * m.sx * (1 - 0.12 * k), rad * m.sy * (1 + 0.22 * k), rad * m.sz * (1 - 0.12 * k));
-  const spin = clamp((t - anim.spinT0) / 0.95, 0, 1), spinE = 1 - Math.pow(1 - spin, 3);
-  if (t - anim.nextLook > 0) { anim.nextLook = t + 2 + Math.random() * 3; anim.lookTarget.set((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.3); }
-  anim.look.lerp(anim.lookTarget, dt * 2.5);
-  bot.rotation.set(anim.look.y * 0.6 + m.rx, anim.look.x + m.ry + spinE * Math.PI * 2, m.rz);
+  const skin = skinColor();
+  let k = 0;
+  if (DAYLIGHT) {
+    // Unlit fill. No rotation, so the official 2D silhouette stays parallel to the screen.
+    // World-Z scale removes the extrusion that read as a solid object.
+    flatMat.color.lerp(skin, Math.min(1, dt * 3));
+    applyDayEyes(mk);
+    const breathe = 1 + Math.sin(t * 1.15) * 0.018;
+    const floatY = Math.sin(t * 1.05) * 0.05;
+    bot.quaternion.identity();
+    bot.scale.set(1, 1, 1);
+    bot.position.set(0, 0, 0);
+    botRig.quaternion.identity();
+    botRig.position.set(center.x, center.y + floatY * rad, 0);
+    botRig.scale.set(rad * breathe, rad * breathe, rad * 0.015);
+    shadow.visible = true;
+    shadow.position.set(center.x, center.y - rad * 0.86, -0.8);
+    shadow.scale.set(rad * 1.08, rad * 0.2, 1);
+  } else {
+    bodyMat.color.lerp(skin, Math.min(1, dt * 2));
+    const bc = bodyMat.color; compMat.uniforms.uBodyPeak.value = Math.pow(Math.min(1, Math.max(bc.r, bc.g, bc.b, 0.02) * 1.3), 0.4545);
+    // celebration kick / spin / look-around
+    const kick = clamp((t - anim.kickT0) / 0.55, 0, 1);
+    k = Math.sin(kick * Math.PI);
+    const jt = t - anim.joltT0, jl = jt < 0.6 ? Math.sin(jt / 0.6 * Math.PI) * 0.1 : 0;
+    bot.position.set(center.x + (m.px + anim.jolt.x * jl) * rad, center.y + (m.py + k * 0.18 + anim.jolt.y * jl) * rad, m.pz * rad);
+    bot.scale.set(rad * m.sx * (1 - 0.12 * k), rad * m.sy * (1 + 0.22 * k), rad * m.sz * (1 - 0.12 * k));
+    const spin = clamp((t - anim.spinT0) / 0.95, 0, 1), spinE = 1 - Math.pow(1 - spin, 3);
+    if (t - anim.nextLook > 0) { anim.nextLook = t + 2 + Math.random() * 3; anim.lookTarget.set((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.3); }
+    anim.look.lerp(anim.lookTarget, dt * 2.5);
+    bot.rotation.set(anim.look.y * 0.6 + m.rx, anim.look.x + m.ry + spinE * Math.PI * 2, m.rz);
+  }
   // blink / wow
   if (t > anim.nextBlink) { anim.blinkT0 = t; anim.nextBlink = t + 2.5 + Math.random() * 4; }
   const bl = (t - anim.blinkT0) < 0.16 && !params.has('noblink') ? 0.25 : 1;
   const wow = clamp((t - anim.wowT0) / 1.4, 0, 1), wowS = 1 + 0.35 * Math.sin(wow * Math.PI);
   setEyes(bl, wowS * eyeK);
+  if (DAYLIGHT) flatEyes.uOpen.value = bl;
   // colours
   const [c1, c2, c3] = bgTriple();
   smoothCol.c1.lerp(c1, dt * 1.5); smoothCol.c2.lerp(c2, dt * 1.5); smoothCol.c3.lerp(c3, dt * 1.5);
@@ -883,11 +990,12 @@ function updateWorld(t, dt, L) {
 function layout() {
   const { cols, rows, cw, ch } = G;
   const FW = clamp(Math.floor(cols * 0.26), 30, 44);
-  return {
-    FW, feedC: cols - FW - 1, feedR: 1, feedMax: Math.max(3, rows - 17),
-    botCx: cols * 0.34, botCy: rows * 0.46, botRadPx: Math.min(rows * ch * 0.34, cols * cw * 0.25),
-    bannerR: rows - 11, bannerH: 9, bottomR: rows - 1,
-  };
+  const base = { FW, feedC: cols - FW - 1, feedR: 1, feedMax: Math.max(3, rows - 17), bannerR: rows - 11, bannerH: 9, bottomR: rows - 1 };
+  if (DAYLIGHT) {
+    // Centered, above the welcome block, small enough that the type sits clear of the silhouette.
+    return { ...base, botCx: cols * 0.5, botCy: rows * 0.34, botRadPx: Math.min(rows * ch, cols * cw) * 0.155 };
+  }
+  return { ...base, botCx: cols * 0.34, botCy: rows * 0.46, botRadPx: Math.min(rows * ch * 0.34, cols * cw * 0.25) };
 }
 const IDLE_LINES = ['scan your luma qr at the door to check in', 'every check-in sends cursor credits to your inbox', 'welcome to the meetup'];
 const DESK = params.has('desk');
@@ -989,12 +1097,13 @@ const usedShapes = new Set();
 const usedColors = new Set();
 
 function getNextUnusedShape() {
-  if (usedShapes.size >= STYLES.length) usedShapes.clear();
-  for (let i = 0; i < STYLES.length; i++) {
-    const idx = (morph.cur + 1 + i) % STYLES.length;
+  const n = shapeN();
+  if (usedShapes.size >= n) usedShapes.clear();
+  for (let i = 0; i < n; i++) {
+    const idx = (morph.cur + 1 + i) % n;
     if (!usedShapes.has(idx)) { usedShapes.add(idx); return idx; }
   }
-  return (morph.cur + 1) % STYLES.length;
+  return (morph.cur + 1) % n;
 }
 
 function getNextUnusedColor() {
@@ -1052,9 +1161,11 @@ function updateCelebration(t, L) {
     anim.spinT0 = t; anim.kickT0 = t; anim.wowT0 = t;
     const nextShape = getNextUnusedShape();
     setStyle(nextShape, t, 0.55); morph.nextAt = t + celeb.dur + 6;
-    const rad = bot.scale.x || 1;
-    burst(DAYLIGHT ? 80 : 220, bot.position, rad, accent());
-    setTimeout(() => burst(DAYLIGHT ? 40 : 120, bot.position, rad, accent()), 320);
+    const rad = (DAYLIGHT ? botRig.scale.x : bot.scale.x) || 1;
+    if (!DAYLIGHT) {
+      burst(220, bot.position, rad, accent());
+      setTimeout(() => burst(120, bot.position, rad, accent()), 320);
+    }
     document.documentElement.style.setProperty('--accent', accent().main);
     app.dirty = true;
   }
@@ -1279,23 +1390,18 @@ async function boot() {
     document.documentElement.classList.add('daylight');
     bgMesh.visible = false;
     daylightBgMesh.visible = true;
-    // Switch to daylight lighting
-    scene.children.filter(c => c.isLight).forEach(l => { if (!l.userData.daylight) l.visible = false; });
-    daylightHemi.visible = true; daylightHemi.userData.daylight = true;
-    daylightKey.visible = true; daylightKey.userData.daylight = true;
-    daylightFill.visible = true; daylightFill.userData.daylight = true;
-    // Reduce material roughness for cleaner look
-    bodyMat.roughness = 0.35;
-    bodyMat.metalness = 0.05;
+    scene.children.filter(c => c.isLight).forEach(l => { l.visible = false; });
+    bodyMesh.material = flatMat;
+    pts.visible = false;
     // Set up daylight UI text
     $('#daylight-title').textContent = t('title');
     $('#daylight-idle').textContent = t('idle');
     $('#daylight-welcome-label').textContent = t('welcome');
     $('#daylight-welcome-credits').textContent = t('credits');
-    // Initialize with sky blue (index 0 in DAYLIGHT_COLORS)
-    daylightColorIdx = 0;
+    // Idle body is production blue. Check-ins walk the rest of the brand palette.
+    daylightColorIdx = 6;
     document.documentElement.style.setProperty('--accent', accent().main);
-    bodyMat.color.set(accent().hex);
+    flatMat.color.set(accent().hex);
   }
   
   frame();
