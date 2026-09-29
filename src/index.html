@@ -18,7 +18,7 @@
   .daylight #daylight-ui{display:block}
   #daylight-title{position:absolute;top:28px;left:32px;font-size:clamp(14px,2vw,20px);font-weight:500;color:#888;letter-spacing:.02em}
   #daylight-idle{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);font-size:clamp(16px,2.5vw,24px);color:#aaa;letter-spacing:.04em;text-align:center;transition:opacity .4s}
-  #daylight-welcome{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .5s;pointer-events:none}
+  #daylight-welcome{position:fixed;left:0;right:0;top:54%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;opacity:0;transition:opacity .5s;pointer-events:none}
   #daylight-welcome.active{opacity:1}
   #daylight-welcome-label{font-size:clamp(28px,5vw,60px);font-weight:700;letter-spacing:.08em;margin-bottom:8px}
   #daylight-welcome-name{font-size:clamp(42px,8vw,120px);font-weight:800;letter-spacing:-.01em;text-align:center;padding:0 20px;line-height:1.1}
@@ -600,15 +600,12 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x1a2030, 1.3));
 const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(-3, 4, 5); scene.add(key);
 const rim = new THREE.PointLight(0x4f9cf9, 40, 30, 2); rim.position.set(3.5, -1.5, 2.5); scene.add(rim);
 
-// Daylight mode lighting (softer, ambient-dominated for cream background)
-const daylightHemi = new THREE.HemisphereLight(0xffffff, 0xf5f0e6, 1.8);
-const daylightKey = new THREE.DirectionalLight(0xffffff, 1.2); daylightKey.position.set(-2, 5, 4);
-const daylightFill = new THREE.DirectionalLight(0xfff5e6, 0.6); daylightFill.position.set(3, 2, 3);
-daylightHemi.visible = false; daylightKey.visible = false; daylightFill.visible = false;
-scene.add(daylightHemi); scene.add(daylightKey); scene.add(daylightFill);
-
-const bot = new THREE.Group(); scene.add(bot);
+// botRig is the scene transform. In daylight it stays unrotated so a world-Z squash
+// flattens the mesh into a silhouette after the inner group turns the face to the camera.
+const botRig = new THREE.Group(); scene.add(botRig);
+const bot = new THREE.Group(); botRig.add(bot);
 const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.0 });
+const flatMat = new THREE.MeshBasicMaterial({ color: 0x4aa8d8 });
 // Eyes are two tilted pills cut into the sphere surface (like the logo), done in the shader.
 const EYES = [ { cx: 0.09, cy: 0.34, half: 0.13, r: 0.135 }, { cx: 0.47, cy: 0.55, half: 0.09, r: 0.10 } ];
 const EYE_TILT = -0.62; // radians from vertical; negative = leaning like a backslash
@@ -623,12 +620,34 @@ function setEyes(open = 1, wow = 1) {
   });
 }
 setEyes();
-bodyMat.onBeforeCompile = sh => {
-  Object.assign(sh.uniforms, eyeU);
-  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aDir; varying vec3 vLocal;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocal = aDir;');
+function attachEyes(mat) {
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, eyeU);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aDir; varying vec3 vLocal;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocal = aDir;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vLocal; uniform vec3 uE1a, uE1b, uE2a, uE2b, uEyeCol; uniform float uR1, uR2;\nfloat segd(vec3 p, vec3 a, vec3 b){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }')
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n{ float m = max(1.0 - smoothstep(uR1 * 0.8, uR1, segd(vLocal, uE1a, uE1b)), 1.0 - smoothstep(uR2 * 0.8, uR2, segd(vLocal, uE2a, uE2b))); gl_FragColor.rgb = mix(gl_FragColor.rgb, uEyeCol, m); }');
+  };
+}
+attachEyes(bodyMat);
+// Daylight eyes are flat ovals in the silhouette plane, not the lit 3D pills.
+const flatEye = { uOpen: { value: 1 } };
+flatMat.onBeforeCompile = sh => {
+  Object.assign(sh.uniforms, flatEye);
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>\nvarying vec2 vFlat;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFlat = position.xy;');
   sh.fragmentShader = sh.fragmentShader
-    .replace('#include <common>', '#include <common>\nvarying vec3 vLocal; uniform vec3 uE1a, uE1b, uE2a, uE2b, uEyeCol; uniform float uR1, uR2;\nfloat segd(vec3 p, vec3 a, vec3 b){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }')
-    .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n{ float m = max(1.0 - smoothstep(uR1 * 0.8, uR1, segd(vLocal, uE1a, uE1b)), 1.0 - smoothstep(uR2 * 0.8, uR2, segd(vLocal, uE2a, uE2b))); gl_FragColor.rgb = mix(gl_FragColor.rgb, uEyeCol, m); }');
+    .replace('#include <common>', `#include <common>
+uniform float uOpen;
+varying vec2 vFlat;
+float flatEye(vec2 p, vec2 c){
+  vec2 d = (p - c) / vec2(0.125, 0.175 * max(uOpen, 0.2));
+  return 1.0 - smoothstep(0.78, 1.0, length(d));
+}`)
+    .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+{ float m = max(flatEye(vFlat, vec2(-0.22, 0.12)), flatEye(vFlat, vec2(0.22, 0.12)));
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.102, 0.153, 0.267), clamp(m, 0.0, 1.0)); }`);
 };
 // ---- morphing body: every form is a radial function R(dir) of the unit sphere, so the eyes stay on its face ----
 const bodyGeo = new THREE.SphereGeometry(1, 64, 48);
@@ -636,7 +655,12 @@ const dirs = Float32Array.from(bodyGeo.attributes.position.array);
 bodyGeo.setAttribute('aDir', new THREE.BufferAttribute(dirs, 3));
 const NV = dirs.length / 3;
 const rFrom = new Float32Array(NV).fill(1), rCur = new Float32Array(NV).fill(1);
-bot.add(new THREE.Mesh(bodyGeo, bodyMat));
+const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+bot.add(bodyMesh);
+// Soft floor ellipse for the daylight mock. Unlit, so it reads as a 2D drop shadow.
+const shadowMat = new THREE.MeshBasicMaterial({ color: 0xc2b6a4, transparent: true, opacity: 0.28, depthWrite: false });
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 48), shadowMat);
+shadow.visible = false; shadow.position.z = -0.8; scene.add(shadow);
 
 // 2D silhouettes from the brand guidelines (implicit functions: <0 inside). Only the zero set matters.
 const sdRoundedBox = (x, y, bx, by, r) => { const qx = Math.abs(x) - bx + r, qy = Math.abs(y) - by + r; return Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r; };
@@ -832,22 +856,43 @@ function updateWorld(t, dt, L) {
   }
   const m = blendMotion(motionAt(pv.motion, t), motionAt(st.motion, t), mk);
   const eyeK = lerp(pv.eye, st.eye, mk);
-  bodyMat.color.lerp(skinColor(), Math.min(1, dt * 2));
-  const bc = bodyMat.color; compMat.uniforms.uBodyPeak.value = Math.pow(Math.min(1, Math.max(bc.r, bc.g, bc.b, 0.02) * 1.3), 0.4545);
-  // celebration kick / spin / look-around
-  const kick = clamp((t - anim.kickT0) / 0.55, 0, 1), k = Math.sin(kick * Math.PI);
-  const jt = t - anim.joltT0, jl = jt < 0.6 ? Math.sin(jt / 0.6 * Math.PI) * 0.1 : 0;
-  bot.position.set(center.x + (m.px + anim.jolt.x * jl) * rad, center.y + (m.py + k * 0.18 + anim.jolt.y * jl) * rad, m.pz * rad);
-  bot.scale.set(rad * m.sx * (1 - 0.12 * k), rad * m.sy * (1 + 0.22 * k), rad * m.sz * (1 - 0.12 * k));
-  const spin = clamp((t - anim.spinT0) / 0.95, 0, 1), spinE = 1 - Math.pow(1 - spin, 3);
-  if (t - anim.nextLook > 0) { anim.nextLook = t + 2 + Math.random() * 3; anim.lookTarget.set((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.3); }
-  anim.look.lerp(anim.lookTarget, dt * 2.5);
-  bot.rotation.set(anim.look.y * 0.6 + m.rx, anim.look.x + m.ry + spinE * Math.PI * 2, m.rz);
+  const skin = skinColor();
+  let k = 0;
+  if (DAYLIGHT) {
+    // Unlit fill. No rotation, so the official 2D silhouette stays parallel to the screen.
+    // World-Z scale removes the extrusion that read as a solid object.
+    flatMat.color.lerp(skin, Math.min(1, dt * 3));
+    const breathe = 1 + Math.sin(t * 1.15) * 0.018;
+    const floatY = Math.sin(t * 1.05) * 0.05;
+    bot.quaternion.identity();
+    bot.scale.set(1, 1, 1);
+    bot.position.set(0, 0, 0);
+    botRig.quaternion.identity();
+    botRig.position.set(center.x, center.y + floatY * rad, 0);
+    botRig.scale.set(rad * breathe, rad * breathe, rad * 0.015);
+    shadow.visible = true;
+    shadow.position.set(center.x, center.y - rad * 0.86, -0.8);
+    shadow.scale.set(rad * 1.08, rad * 0.2, 1);
+  } else {
+    bodyMat.color.lerp(skin, Math.min(1, dt * 2));
+    const bc = bodyMat.color; compMat.uniforms.uBodyPeak.value = Math.pow(Math.min(1, Math.max(bc.r, bc.g, bc.b, 0.02) * 1.3), 0.4545);
+    // celebration kick / spin / look-around
+    const kick = clamp((t - anim.kickT0) / 0.55, 0, 1);
+    k = Math.sin(kick * Math.PI);
+    const jt = t - anim.joltT0, jl = jt < 0.6 ? Math.sin(jt / 0.6 * Math.PI) * 0.1 : 0;
+    bot.position.set(center.x + (m.px + anim.jolt.x * jl) * rad, center.y + (m.py + k * 0.18 + anim.jolt.y * jl) * rad, m.pz * rad);
+    bot.scale.set(rad * m.sx * (1 - 0.12 * k), rad * m.sy * (1 + 0.22 * k), rad * m.sz * (1 - 0.12 * k));
+    const spin = clamp((t - anim.spinT0) / 0.95, 0, 1), spinE = 1 - Math.pow(1 - spin, 3);
+    if (t - anim.nextLook > 0) { anim.nextLook = t + 2 + Math.random() * 3; anim.lookTarget.set((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.3); }
+    anim.look.lerp(anim.lookTarget, dt * 2.5);
+    bot.rotation.set(anim.look.y * 0.6 + m.rx, anim.look.x + m.ry + spinE * Math.PI * 2, m.rz);
+  }
   // blink / wow
   if (t > anim.nextBlink) { anim.blinkT0 = t; anim.nextBlink = t + 2.5 + Math.random() * 4; }
   const bl = (t - anim.blinkT0) < 0.16 && !params.has('noblink') ? 0.25 : 1;
   const wow = clamp((t - anim.wowT0) / 1.4, 0, 1), wowS = 1 + 0.35 * Math.sin(wow * Math.PI);
   setEyes(bl, wowS * eyeK);
+  if (DAYLIGHT) flatEye.uOpen.value = bl;
   // colours
   const [c1, c2, c3] = bgTriple();
   smoothCol.c1.lerp(c1, dt * 1.5); smoothCol.c2.lerp(c2, dt * 1.5); smoothCol.c3.lerp(c3, dt * 1.5);
@@ -883,11 +928,12 @@ function updateWorld(t, dt, L) {
 function layout() {
   const { cols, rows, cw, ch } = G;
   const FW = clamp(Math.floor(cols * 0.26), 30, 44);
-  return {
-    FW, feedC: cols - FW - 1, feedR: 1, feedMax: Math.max(3, rows - 17),
-    botCx: cols * 0.34, botCy: rows * 0.46, botRadPx: Math.min(rows * ch * 0.34, cols * cw * 0.25),
-    bannerR: rows - 11, bannerH: 9, bottomR: rows - 1,
-  };
+  const base = { FW, feedC: cols - FW - 1, feedR: 1, feedMax: Math.max(3, rows - 17), bannerR: rows - 11, bannerH: 9, bottomR: rows - 1 };
+  if (DAYLIGHT) {
+    // Centered, above the welcome block, small enough that the type sits clear of the silhouette.
+    return { ...base, botCx: cols * 0.5, botCy: rows * 0.34, botRadPx: Math.min(rows * ch, cols * cw) * 0.155 };
+  }
+  return { ...base, botCx: cols * 0.34, botCy: rows * 0.46, botRadPx: Math.min(rows * ch * 0.34, cols * cw * 0.25) };
 }
 const IDLE_LINES = ['scan your luma qr at the door to check in', 'every check-in sends cursor credits to your inbox', 'welcome to the meetup'];
 const DESK = params.has('desk');
@@ -1052,9 +1098,11 @@ function updateCelebration(t, L) {
     anim.spinT0 = t; anim.kickT0 = t; anim.wowT0 = t;
     const nextShape = getNextUnusedShape();
     setStyle(nextShape, t, 0.55); morph.nextAt = t + celeb.dur + 6;
-    const rad = bot.scale.x || 1;
-    burst(DAYLIGHT ? 80 : 220, bot.position, rad, accent());
-    setTimeout(() => burst(DAYLIGHT ? 40 : 120, bot.position, rad, accent()), 320);
+    const rad = (DAYLIGHT ? botRig.scale.x : bot.scale.x) || 1;
+    if (!DAYLIGHT) {
+      burst(220, bot.position, rad, accent());
+      setTimeout(() => burst(120, bot.position, rad, accent()), 320);
+    }
     document.documentElement.style.setProperty('--accent', accent().main);
     app.dirty = true;
   }
@@ -1279,14 +1327,9 @@ async function boot() {
     document.documentElement.classList.add('daylight');
     bgMesh.visible = false;
     daylightBgMesh.visible = true;
-    // Switch to daylight lighting
-    scene.children.filter(c => c.isLight).forEach(l => { if (!l.userData.daylight) l.visible = false; });
-    daylightHemi.visible = true; daylightHemi.userData.daylight = true;
-    daylightKey.visible = true; daylightKey.userData.daylight = true;
-    daylightFill.visible = true; daylightFill.userData.daylight = true;
-    // Reduce material roughness for cleaner look
-    bodyMat.roughness = 0.35;
-    bodyMat.metalness = 0.05;
+    scene.children.filter(c => c.isLight).forEach(l => { l.visible = false; });
+    bodyMesh.material = flatMat;
+    pts.visible = false;
     // Set up daylight UI text
     $('#daylight-title').textContent = t('title');
     $('#daylight-idle').textContent = t('idle');
@@ -1295,7 +1338,7 @@ async function boot() {
     // Initialize with sky blue (index 0 in DAYLIGHT_COLORS)
     daylightColorIdx = 0;
     document.documentElement.style.setProperty('--accent', accent().main);
-    bodyMat.color.set(accent().hex);
+    flatMat.color.set(accent().hex);
   }
   
   frame();
