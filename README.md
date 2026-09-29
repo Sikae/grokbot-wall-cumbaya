@@ -4,9 +4,13 @@ A Three.js welcome wall for Grok Bot meetups. Guests check in on Luma, a full-sc
 animated Grok Bot greets each one by name on the venue projector, and every guest is
 emailed a Cursor referral code (credits) the moment they check in.
 
-**Daylight mode** (default): solid-filled animated Grok Bot on a cream background, designed
-for morning events in bright rooms. The bot morphs through eight official silhouettes in
-vivid brand colours, welcoming each guest by name for 8–10 seconds.
+**Daylight mode** (default): flat solid Grok Bot on a cream background, for a bright morning
+room. Each check-in morphs to the next official silhouette and holds the welcome for about
+9 seconds. The night-of cycle is only the preferred brand set: blob, pebble, bean, egg,
+squircle, wedge, hex, cloud, teardrop, capsule. Body colors are the production hexes
+(brown `#97683D`, red `#FF263C`, orange `#FF6700`, yellow `#FF9800`, green `#00C972`,
+cyan `#00BCA6`, blue `#1084FE`, violet `#9159FE`, magenta `#FF309B`, gray `#777777`).
+Idle starts on the blue blob. Flower, clover, and sharp triangle are not in the cycle.
 
 **ASCII mode** (`?ascii`): the original terminal aesthetic — a WebGL character grid with
 3D Grok Bots rendered through an ASCII shader, morphing silhouettes, drifting headline,
