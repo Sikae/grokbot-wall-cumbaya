@@ -675,7 +675,7 @@ float capEye(vec2 p, vec4 e, float rad){
 }`)
     .replace('#include <dithering_fragment>', `#include <dithering_fragment>
 { float m = max(1.0 - smoothstep(0.0, 0.02, capEye(vFlat, uE1, uER.x)), 1.0 - smoothstep(0.0, 0.02, capEye(vFlat, uE2, uER.y)));
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.0), clamp(m, 0.0, 1.0)); }`);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), clamp(m, 0.0, 1.0)); }`);
 };
 // ---- morphing body: every form is a radial function R(dir) of the unit sphere, so the eyes stay on its face ----
 const bodyGeo = new THREE.SphereGeometry(1, 64, 48);
