@@ -774,7 +774,19 @@ function applyDayEyes(k) {
   flatEyes.uER.value.set(L[4], R[4]);
 }
 const morph = { cur: 0, prev: 0, t0: -10, dur: 1.2, nextAt: 13, settled: -1 };
+// Springy elastic ease for product-like morph transitions
 const easeOutBack = k => 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
+const easeOutElastic = k => {
+  if (k === 0 || k === 1) return k;
+  const p = 0.35, s = p / 4;
+  return Math.pow(2, -10 * k) * Math.sin((k - s) * (2 * Math.PI) / p) + 1;
+};
+const springMorph = k => {
+  // Blend back and elastic for a bouncy but controlled feel
+  const back = easeOutBack(k);
+  const elastic = easeOutElastic(k);
+  return lerp(back, elastic, 0.35);
+};
 function setStyle(i, t, dur = 1.4) {
   const n = shapeN();
   i = ((i % n) + n) % n;
@@ -903,9 +915,10 @@ function updateWorld(t, dt, L) {
   // bot placement from layout
   const center = cellToWorld(L.botCx, L.botCy);
   const rad = pxToWorld(L.botRadPx);
-  // shape morph
+  // shape morph with springy transition
   const st = STYLES[morph.cur] || STYLES[0], pv = STYLES[morph.prev] || STYLES[0];
-  const mk = clamp((t - morph.t0) / morph.dur, 0, 1), me = easeOutBack(mk);
+  const mk = clamp((t - morph.t0) / morph.dur, 0, 1);
+  const me = DAYLIGHT ? springMorph(mk) : easeOutBack(mk);
   if (morph.settled !== morph.cur) {
     const rt = formRadii(morph.cur), pos = bodyGeo.attributes.position.array;
     for (let i = 0; i < NV; i++) {
@@ -920,21 +933,38 @@ function updateWorld(t, dt, L) {
   const skin = skinColor();
   let k = 0;
   if (DAYLIGHT) {
-    // Unlit fill. No rotation, so the official 2D silhouette stays parallel to the screen.
-    // World-Z scale removes the extrusion that read as a solid object.
+    // Unlit fill. The silhouette stays parallel to the screen with gentle idle motion.
     flatMat.color.lerp(skin, Math.min(1, dt * 3));
     applyDayEyes(mk);
-    const breathe = 1 + Math.sin(t * 1.15) * 0.018;
-    const floatY = Math.sin(t * 1.05) * 0.05;
+
+    // Idle motion: organic breathing with multiple frequencies
+    const breathe1 = Math.sin(t * 1.15) * 0.022;
+    const breathe2 = Math.sin(t * 0.73) * 0.012;
+    const breathe = 1 + breathe1 + breathe2;
+
+    // Gentle float: vertical bobbing + subtle horizontal drift
+    const floatY = Math.sin(t * 0.85) * 0.055 + Math.sin(t * 1.3) * 0.018;
+    const floatX = Math.sin(t * 0.62) * 0.025 + Math.sin(t * 1.1) * 0.008;
+
+    // Soft sway: gentle rotation around Z for a "looking around" feel
+    const sway = Math.sin(t * 0.48) * 0.04 + Math.sin(t * 0.91) * 0.018;
+
+    // Spring-based celebration kick: adds bounce on morph
+    const celebKick = clamp((t - morph.t0) / 0.35, 0, 1);
+    const celebBounce = Math.sin(celebKick * Math.PI) * (1 - celebKick) * 0.08;
+
     bot.quaternion.identity();
     bot.scale.set(1, 1, 1);
     bot.position.set(0, 0, 0);
-    botRig.quaternion.identity();
-    botRig.position.set(center.x, center.y + floatY * rad, 0);
+
+    // Apply sway rotation to botRig
+    botRig.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), sway);
+    botRig.position.set(center.x + floatX * rad, center.y + (floatY + celebBounce) * rad, 0);
     botRig.scale.set(rad * breathe, rad * breathe, rad * 0.015);
+
     shadow.visible = true;
-    shadow.position.set(center.x, center.y - rad * 0.86, -0.8);
-    shadow.scale.set(rad * 1.08, rad * 0.2, 1);
+    shadow.position.set(center.x + floatX * rad * 0.5, center.y - rad * 0.86, -0.8);
+    shadow.scale.set(rad * 1.08 * breathe, rad * 0.2, 1);
   } else {
     bodyMat.color.lerp(skin, Math.min(1, dt * 2));
     const bc = bodyMat.color; compMat.uniforms.uBodyPeak.value = Math.pow(Math.min(1, Math.max(bc.r, bc.g, bc.b, 0.02) * 1.3), 0.4545);
@@ -949,9 +979,26 @@ function updateWorld(t, dt, L) {
     anim.look.lerp(anim.lookTarget, dt * 2.5);
     bot.rotation.set(anim.look.y * 0.6 + m.rx, anim.look.x + m.ry + spinE * Math.PI * 2, m.rz);
   }
-  // blink / wow
-  if (t > anim.nextBlink) { anim.blinkT0 = t; anim.nextBlink = t + 2.5 + Math.random() * 4; }
-  const bl = (t - anim.blinkT0) < 0.16 && !params.has('noblink') ? 0.25 : 1;
+  // blink / wow with smooth eye animation
+  if (t > anim.nextBlink) {
+    anim.blinkT0 = t;
+    // Daylight: more frequent blinks for a lively feel; occasionally double-blink
+    const isDouble = Math.random() < 0.15;
+    const baseInterval = DAYLIGHT ? 2.2 : 2.5;
+    anim.nextBlink = t + (isDouble ? 0.35 : baseInterval + Math.random() * 3.5);
+  }
+  const blinkDur = 0.18;
+  const blinkT = t - anim.blinkT0;
+  let bl = 1;
+  if (!params.has('noblink') && blinkT < blinkDur) {
+    // Smooth blink: close then open with easing
+    const halfDur = blinkDur / 2;
+    if (blinkT < halfDur) {
+      bl = 1 - 0.75 * Math.sin((blinkT / halfDur) * Math.PI / 2);
+    } else {
+      bl = 0.25 + 0.75 * Math.sin(((blinkT - halfDur) / halfDur) * Math.PI / 2);
+    }
+  }
   const wow = clamp((t - anim.wowT0) / 1.4, 0, 1), wowS = 1 + 0.35 * Math.sin(wow * Math.PI);
   setEyes(bl, wowS * eyeK);
   if (DAYLIGHT) flatEyes.uOpen.value = bl;
@@ -1160,7 +1207,9 @@ function updateCelebration(t, L) {
     celeb.flash = DAYLIGHT ? 0.3 : 0.9;
     anim.spinT0 = t; anim.kickT0 = t; anim.wowT0 = t;
     const nextShape = getNextUnusedShape();
-    setStyle(nextShape, t, 0.55); morph.nextAt = t + celeb.dur + 6;
+    // Daylight: longer springy morph; ASCII: faster transitions
+    const morphDur = DAYLIGHT ? 0.75 : 0.55;
+    setStyle(nextShape, t, morphDur); morph.nextAt = t + celeb.dur + 6;
     const rad = (DAYLIGHT ? botRig.scale.x : bot.scale.x) || 1;
     if (!DAYLIGHT) {
       burst(220, bot.position, rad, accent());
