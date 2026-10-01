@@ -22,7 +22,6 @@
   #daylight-welcome.active{opacity:1}
   #daylight-welcome-label{font-size:clamp(28px,5vw,60px);font-weight:700;letter-spacing:.08em;margin-bottom:8px;color:#1a1a1a;text-shadow:0 0 18px #FAF7F0,0 0 6px #FAF7F0}
   #daylight-welcome-name{font-size:clamp(42px,8vw,120px);font-weight:800;letter-spacing:-.01em;text-align:center;padding:0 20px;line-height:1.1}
-  #daylight-welcome-credits{font-size:clamp(14px,2vw,22px);color:#888;margin-top:24px;letter-spacing:.02em}
   #gl{display:block}
   button{font:inherit;color:var(--fg);background:transparent;border:1px solid var(--line);padding:6px 12px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;font-size:12px}
   button:hover{border-color:var(--accent);color:#fff}
@@ -84,7 +83,6 @@
   <div id="daylight-welcome">
     <div id="daylight-welcome-label">WELCOME</div>
     <div id="daylight-welcome-name"></div>
-    <div id="daylight-welcome-credits">Your Cursor credits are on the way</div>
   </div>
 </div>
 
@@ -130,13 +128,11 @@ const I18N = {
     title: 'Grok Bot · Cumbayá',
     idle: 'Waiting for you',
     welcome: 'WELCOME',
-    credits: 'Your Cursor credits are on the way',
   },
   es: {
     title: 'Grok Bot · Cumbayá',
     idle: 'Esperándote',
     welcome: 'BIENVENIDO',
-    credits: 'Tus créditos de Cursor están en camino',
   },
 };
 const t = key => (I18N[LANG] || I18N.en)[key] || I18N.en[key];
@@ -1443,7 +1439,6 @@ async function boot() {
     $('#daylight-title').textContent = t('title');
     $('#daylight-idle').textContent = t('idle');
     $('#daylight-welcome-label').textContent = t('welcome');
-    $('#daylight-welcome-credits').textContent = t('credits');
     // Idle body is production blue. Check-ins walk the rest of the brand palette.
     daylightColorIdx = 6;
     document.documentElement.style.setProperty('--accent', accent().main);
