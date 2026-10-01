@@ -20,7 +20,7 @@
   #daylight-idle{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);font-size:clamp(16px,2.5vw,24px);color:#aaa;letter-spacing:.04em;text-align:center;transition:opacity .4s}
   #daylight-welcome{position:fixed;left:0;right:0;top:54%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;opacity:0;transition:opacity .5s;pointer-events:none}
   #daylight-welcome.active{opacity:1}
-  #daylight-welcome-label{font-size:clamp(28px,5vw,60px);font-weight:700;letter-spacing:.08em;margin-bottom:8px}
+  #daylight-welcome-label{font-size:clamp(28px,5vw,60px);font-weight:700;letter-spacing:.08em;margin-bottom:8px;color:#1a1a1a;text-shadow:0 0 18px #FAF7F0,0 0 6px #FAF7F0}
   #daylight-welcome-name{font-size:clamp(42px,8vw,120px);font-weight:800;letter-spacing:-.01em;text-align:center;padding:0 20px;line-height:1.1}
   #daylight-welcome-credits{font-size:clamp(14px,2vw,22px);color:#888;margin-top:24px;letter-spacing:.02em}
   #gl{display:block}
@@ -1174,14 +1174,11 @@ function updateDaylightUI(t) {
   const welcomeEl = $('#daylight-welcome');
   const idleEl = $('#daylight-idle');
   const nameEl = $('#daylight-welcome-name');
-  const labelEl = $('#daylight-welcome-label');
-  const creditsEl = $('#daylight-welcome-credits');
   
   if (celeb.active) {
     const name = celeb.active.name || (celeb.active.email ? celeb.active.email.split('@')[0] : 'Guest');
     const firstName = name.split(' ')[0];
     nameEl.textContent = firstName;
-    labelEl.style.color = accent().main;
     nameEl.style.color = '#222';
     welcomeEl.classList.add('active');
     idleEl.style.opacity = '0';
